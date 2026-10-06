@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TP5 — Navigation Autonome TurtleBot3</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1a1a2e;
+    --ink2: #2d2d4e;
+    --muted: #6b7280;
+    --bg: #f8f7f4;
+    --surface: #ffffff;
+    --border: #e5e1d8;
+    --accent-teal: #0d9488;
+    --accent-teal-light: #ccfbf1;
+    --accent-orange: #ea580c;
+    --accent-orange-light: #ffedd5;
+    --accent-purple: #7c3aed;
+    --accent-purple-light: #ede9fe;
+    --accent-blue: #1d4ed8;
+    --accent-blue-light: #dbeafe;
+    --accent-green: #15803d;
+    --accent-green-light: #dcfce7;
+    --accent-red: #dc2626;
+    --accent-red-light: #fee2e2;
+    --state-forward: #0d9488;
+    --state-left: #7c3aed;
+    --state-right: #ea580c;
+    --state-back: #1d4ed8;
+    --state-stuck: #dc2626;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  
+  body {
+    font-family: 'Outfit', sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.7;
+    font-size: 16px;
+  }
+
+  /* ── COVER ── */
+  .cover {
+    background: var(--ink);
+    color: white;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 4rem 2rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .cover::before {
+    content: '';
+    position: absolute;
+    width: 600px; height: 600px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(13,148,136,0.15) 0%, transparent 70%);
+    top: -200px; right: -200px;
+  }
+  .cover::after {
+    content: '';
+    position: absolute;
+    width: 400px; height: 400px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(124,58,237,0.12) 0%, transparent 70%);
+    bottom: -150px; left: -100px;
+  }
+  .cover-badge {
+    display: inline-block;
+    background: rgba(13,148,136,0.2);
+    color: #5eead4;
+    border: 1px solid rgba(13,148,136,0.4);
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 6px 18px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 2rem;
+  }
+  .cover h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(2.2rem, 6vw, 4.5rem);
+    line-height: 1.1;
+    margin-bottom: 1.5rem;
+    max-width: 800px;
+  }
+  .cover h1 em {
+    font-style: italic;
+    color: #5eead4;
+  }
+  .cover-sub {
+    font-size: 1.1rem;
+    color: rgba(255,255,255,0.6);
+    max-width: 560px;
+    margin-bottom: 3rem;
+  }
+  .cover-meta {
+    display: flex;
+    gap: 2rem;
+    font-size: 13px;
+    color: rgba(255,255,255,0.5);
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .cover-meta span { display: flex; align-items: center; gap: 6px; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+  .dot.teal { background: #5eead4; }
+  .dot.purple { background: #a78bfa; }
+  .dot.orange { background: #fb923c; }
+
+  /* ── LAYOUT ── */
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 2rem;
+  }
+
+  /* ── SECTION ── */
+  .section {
+    padding: 5rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .section:last-child { border-bottom: none; }
+
+  .section-eyebrow {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-eyebrow::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .section-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(1.8rem, 4vw, 2.8rem);
+    line-height: 1.15;
+    color: var(--ink);
+    margin-bottom: 1.5rem;
+  }
+  .section-title em {
+    font-style: italic;
+    color: var(--accent-teal);
+  }
+
+  .lead {
+    font-size: 1.1rem;
+    color: var(--muted);
+    max-width: 680px;
+    margin-bottom: 2.5rem;
+    line-height: 1.8;
+  }
+
+  /* ── CARDS ── */
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1.25rem;
+    margin-top: 2rem;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.5rem;
+  }
+  .card-icon {
+    width: 44px; height: 44px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    margin-bottom: 1rem;
+  }
+  .card-title {
+    font-weight: 600;
+    font-size: 1rem;
+    margin-bottom: 0.4rem;
+  }
+  .card-body {
+    font-size: 0.9rem;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  /* ── STATE CHIPS ── */
+  .state-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-size: 14px;
+    font-weight: 500;
+    font-family: 'DM Mono', monospace;
+  }
+  .state-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* ── DIAGRAM WRAPPER ── */
+  .diagram-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 2rem;
+    margin: 2rem 0;
+    overflow-x: auto;
+  }
+  .diagram-caption {
+    text-align: center;
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 1rem;
+    font-style: italic;
+  }
+
+  /* ── HIGHLIGHT BOX ── */
+  .highlight {
+    border-left: 3px solid var(--accent-teal);
+    background: var(--accent-teal-light);
+    border-radius: 0 12px 12px 0;
+    padding: 1.25rem 1.5rem;
+    margin: 2rem 0;
+  }
+  .highlight.purple {
+    border-left-color: var(--accent-purple);
+    background: var(--accent-purple-light);
+  }
+  .highlight.orange {
+    border-left-color: var(--accent-orange);
+    background: var(--accent-orange-light);
+  }
+  .highlight-title {
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin-bottom: 0.4rem;
+  }
+  .highlight-body {
+    font-size: 0.9rem;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+
+  /* ── CODE ── */
+  code {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    background: rgba(0,0,0,0.06);
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: var(--ink2);
+  }
+  pre {
+    background: var(--ink);
+    color: #e2e8f0;
+    border-radius: 12px;
+    padding: 1.5rem;
+    overflow-x: auto;
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    line-height: 1.8;
+    margin: 1.5rem 0;
+  }
+  pre .kw { color: #5eead4; }
+  pre .st { color: #fbbf24; }
+  pre .cm { color: #64748b; }
+
+  /* ── PARAMETERS TABLE ── */
+  .param-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    margin: 1.5rem 0;
+  }
+  .param-table th {
+    background: var(--ink);
+    color: white;
+    padding: 10px 16px;
+    text-align: left;
+    font-weight: 500;
+    font-size: 13px;
+  }
+  .param-table th:first-child { border-radius: 8px 0 0 0; }
+  .param-table th:last-child { border-radius: 0 8px 0 0; }
+  .param-table td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    color: var(--muted);
+    vertical-align: top;
+  }
+  .param-table tr:last-child td { border-bottom: none; }
+  .param-table tr:nth-child(even) td { background: rgba(0,0,0,0.025); }
+  .param-table code { font-size: 12px; }
+
+  /* ── DIFF TABLE ── */
+  .diff-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    margin: 1.5rem 0;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  .diff-table th {
+    background: var(--ink2);
+    color: white;
+    padding: 12px 20px;
+    font-weight: 500;
+    font-size: 13px;
+  }
+  .diff-table td {
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .diff-table tr:last-child td { border-bottom: none; }
+  .diff-table .attr { font-weight: 500; color: var(--ink2); font-size: 13px; }
+  .diff-table .val { color: var(--muted); font-size: 13px; }
+  .tag-fsm {
+    display: inline-block;
+    background: var(--accent-teal-light);
+    color: var(--accent-teal);
+    border-radius: 6px;
+    padding: 2px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: 'DM Mono', monospace;
+    margin-bottom: 4px;
+  }
+  .tag-bt {
+    display: inline-block;
+    background: var(--accent-purple-light);
+    color: var(--accent-purple);
+    border-radius: 6px;
+    padding: 2px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: 'DM Mono', monospace;
+    margin-bottom: 4px;
+  }
+
+  /* ── ARCHITECTURE DIAGRAM SVG ── */
+  svg text { font-family: 'Outfit', sans-serif; }
+
+  /* ── FOOTER ── */
+  .footer {
+    background: var(--ink);
+    color: rgba(255,255,255,0.5);
+    text-align: center;
+    padding: 2.5rem 2rem;
+    font-size: 13px;
+  }
+  .footer strong { color: #5eead4; }
+
+  /* ── ZONES LIDAR ── */
+  .zone-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+    margin: 1.5rem 0;
+  }
+  .zone-card {
+    border-radius: 10px;
+    padding: 0.9rem 1rem;
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .zone-name { font-family: 'DM Mono', monospace; font-size: 12px; margin-bottom: 3px; }
+  .zone-angle { font-size: 12px; opacity: 0.7; }
+
+  @media print {
+    .cover { min-height: auto; padding: 3rem 2rem; }
+    .section { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════
+  COVER
+═══════════════════════════════════════════════════ -->
+<div class="cover">
+  <div class="cover-badge">TP5 · Robotique Autonome · ROS2 Humble</div>
+  <h1>Navigation <em>autonome</em><br>TurtleBot3</h1>
+  <p class="cover-sub">Implémentation et analyse comparative d'une Machine à États Finis (FSM) et d'un Behavior Tree (BT) pour l'évitement d'obstacles en simulation Gazebo.</p>
+  <div class="cover-meta">
+    <span><span class="dot teal"></span> Ubuntu 22.04 LTS</span>
+    <span><span class="dot purple"></span> ROS2 Humble</span>
+    <span><span class="dot orange"></span> TurtleBot3 Waffle</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+  1. INTRODUCTION & ARCHITECTURE
+═══════════════════════════════════════════════════ -->
+<section class="section" id="intro">
+<div class="container">
+  <p class="section-eyebrow">01 — Introduction</p>
+  <h2 class="section-title">Vue d'ensemble de<br><em>l'environnement</em></h2>
+  <p class="lead">Ce TP met en œuvre un robot mobile autonome dans un simulateur physique 3D. Le robot navigue sans intervention humaine, détecte les obstacles grâce à un capteur laser, et prend ses décisions en temps réel.</p>
+
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-icon" style="background:#e0f2fe;">🤖</div>
+      <div class="card-title">TurtleBot3 Waffle</div>
+      <div class="card-body">Robot à deux roues motrices, populaire en recherche académique. Équipé d'un Lidar 360°, d'une caméra RealSense et d'une unité IMU. Modèle réel simulé fidèlement dans Gazebo.</div>
+    </div>
+    <div class="card">
+      <div class="card-icon" style="background:#fef3c7;">🌍</div>
+      <div class="card-title">Gazebo Classic</div>
+      <div class="card-body">Simulateur physique 3D open-source. Modélise la gravité, les collisions, la friction et les capteurs. Le plugin <code>GazeboRosFactory</code> assure le pont avec ROS2 pour spawner les entités.</div>
+    </div>
+    <div class="card">
+      <div class="card-icon" style="background:#f3e8ff;">📡</div>
+      <div class="card-title">ROS2 Humble</div>
+      <div class="card-body">Middleware robotique distribué. Les nœuds communiquent via des <em>topics</em> (pub/sub). Le Lidar publie sur <code>/scan</code>, le contrôleur souscrit et publie sur <code>/cmd_vel</code>.</div>
+    </div>
+    <div class="card">
+      <div class="card-icon" style="background:#dcfce7;">🔦</div>
+      <div class="card-title">Lidar 360°</div>
+      <div class="card-body">Capteur laser tournant qui mesure les distances à 360° autour du robot. Publie un message <code>LaserScan</code> contenant un tableau de distances toutes les ~200ms (5 Hz).</div>
+    </div>
+  </div>
+
+  <!-- Architecture diagram -->
+  <div class="diagram-box">
+    <svg width="100%" viewBox="0 0 800 260" role="img">
+      <title>Architecture ROS2 du système</title>
+      <!-- Gazebo -->
+      <rect x="20" y="60" width="160" height="80" rx="12" fill="#1a1a2e" stroke="#2d3748" stroke-width="1.5"/>
+      <text x="100" y="95" text-anchor="middle" fill="white" font-size="14" font-weight="600">Gazebo</text>
+      <text x="100" y="115" text-anchor="middle" fill="#94a3b8" font-size="12">Simulateur 3D</text>
+      <!-- Lidar node -->
+      <rect x="240" y="20" width="150" height="60" rx="10" fill="#0d9488" fill-opacity="0.12" stroke="#0d9488" stroke-width="1"/>
+      <text x="315" y="46" text-anchor="middle" fill="#0d9488" font-size="13" font-weight="600">Lidar Plugin</text>
+      <text x="315" y="63" text-anchor="middle" fill="#0d9488" font-size="11">/scan topic</text>
+      <!-- Robot model -->
+      <rect x="240" y="100" width="150" height="60" rx="10" fill="#1d4ed8" fill-opacity="0.1" stroke="#1d4ed8" stroke-width="1"/>
+      <text x="315" y="126" text-anchor="middle" fill="#1d4ed8" font-size="13" font-weight="600">Moteurs</text>
+      <text x="315" y="143" text-anchor="middle" fill="#1d4ed8" font-size="11">/cmd_vel topic</text>
+      <!-- Navigation node -->
+      <rect x="460" y="60" width="180" height="80" rx="12" fill="#7c3aed" fill-opacity="0.1" stroke="#7c3aed" stroke-width="1.5"/>
+      <text x="550" y="93" text-anchor="middle" fill="#7c3aed" font-size="14" font-weight="600">Nœud Nav</text>
+      <text x="550" y="113" text-anchor="middle" fill="#7c3aed" font-size="11">FSM ou BT</text>
+      <!-- lidar_zones module -->
+      <rect x="680" y="60" width="110" height="80" rx="12" fill="#ea580c" fill-opacity="0.1" stroke="#ea580c" stroke-width="1"/>
+      <text x="735" y="93" text-anchor="middle" fill="#ea580c" font-size="12" font-weight="600">lidar_zones</text>
+      <text x="735" y="110" text-anchor="middle" fill="#ea580c" font-size="10">analyse</text>
+      <text x="735" y="124" text-anchor="middle" fill="#ea580c" font-size="10">multi-zones</text>
+      <!-- Arrows -->
+      <!-- Gazebo → Lidar -->
+      <line x1="180" y1="80" x2="238" y2="55" stroke="#0d9488" stroke-width="1.5" marker-end="url(#arr)"/>
+      <!-- Lidar → Nav -->
+      <line x1="390" y1="50" x2="458" y2="90" stroke="#0d9488" stroke-width="1.5" marker-end="url(#arr)"/>
+      <!-- Nav → Motors -->
+      <line x1="460" y1="120" x2="392" y2="130" stroke="#1d4ed8" stroke-width="1.5" marker-end="url(#arr)"/>
+      <!-- Motors → Gazebo -->
+      <line x1="240" y1="130" x2="182" y2="120" stroke="#1d4ed8" stroke-width="1.5" marker-end="url(#arr)"/>
+      <!-- Nav → lidar_zones -->
+      <line x1="640" y1="100" x2="678" y2="100" stroke="#ea580c" stroke-width="1.5" marker-end="url(#arr)" stroke-dasharray="5 3"/>
+      <!-- Labels on arrows -->
+      <text x="210" y="55" fill="#0d9488" font-size="10">/scan</text>
+      <text x="420" y="68" fill="#0d9488" font-size="10">/scan</text>
+      <text x="310" y="148" fill="#1d4ed8" font-size="10">/cmd_vel</text>
+      <text x="195" y="148" fill="#1d4ed8" font-size="10">/cmd_vel</text>
+      <!-- Arrow marker -->
+      <defs>
+        <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </marker>
+      </defs>
+      <!-- Step labels -->
+      <text x="100" y="195" text-anchor="middle" fill="#64748b" font-size="11">① Simule le monde</text>
+      <text x="315" y="195" text-anchor="middle" fill="#64748b" font-size="11">② Publie les données capteur</text>
+      <text x="550" y="195" text-anchor="middle" fill="#64748b" font-size="11">③ Calcule la décision</text>
+      <text x="735" y="195" text-anchor="middle" fill="#ea580c" font-size="11">④ Analyse Lidar</text>
+    </svg>
+    <p class="diagram-caption">Fig. 1 — Architecture générale du système de navigation autonome. Les topics ROS2 <code>/scan</code> et <code>/cmd_vel</code> assurent la communication entre les composants.</p>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+  2. LIDAR MULTI-ZONES
+═══════════════════════════════════════════════════ -->
+<section class="section" id="lidar">
+<div class="container">
+  <p class="section-eyebrow">02 — Module Lidar</p>
+  <h2 class="section-title">Analyse <em>multi-zones</em><br>du capteur laser</h2>
+  <p class="lead">Le module <code>lidar_zones.py</code> divise les 360° du Lidar en 6 zones angulaires distinctes, permettant une prise de décision plus fine qu'une simple lecture frontale.</p>
+
+  <div class="diagram-box">
+    <svg width="100%" viewBox="0 0 500 440" role="img">
+      <title>Zones Lidar du robot</title>
+      <!-- Background -->
+      <!-- Robot body -->
+      <circle cx="250" cy="220" r="38" fill="#1a1a2e" stroke="#334155" stroke-width="2"/>
+      <text x="250" y="216" text-anchor="middle" fill="white" font-size="11" font-weight="600">ROBOT</text>
+      <text x="250" y="231" text-anchor="middle" fill="#94a3b8" font-size="10">Waffle</text>
+      <!-- Direction arrow (forward = up) -->
+      <line x1="250" y1="182" x2="250" y2="155" stroke="#5eead4" stroke-width="2" marker-end="url(#arr2)"/>
+      <text x="263" y="162" fill="#5eead4" font-size="10" font-weight="600">Avant</text>
+
+      <!-- FRONT zone (±30°) -->
+      <path d="M250 220 L224 78 A148 148 0 0 1 276 78 Z" fill="#0d9488" fill-opacity="0.18" stroke="#0d9488" stroke-width="1"/>
+      <text x="250" y="72" text-anchor="middle" fill="#0d9488" font-size="12" font-weight="700">FRONT</text>
+      <text x="250" y="87" text-anchor="middle" fill="#0d9488" font-size="10">±30°</text>
+
+      <!-- FRONT LEFT zone (30-90°) -->
+      <path d="M250 220 L118 105 A148 148 0 0 1 224 78 Z" fill="#7c3aed" fill-opacity="0.13" stroke="#7c3aed" stroke-width="1"/>
+      <text x="130" y="96" text-anchor="middle" fill="#7c3aed" font-size="11" font-weight="600">FL</text>
+      <text x="130" y="110" text-anchor="middle" fill="#7c3aed" font-size="10">30–90°</text>
+
+      <!-- LEFT zone (90-150°) -->
+      <path d="M250 220 L102 242 A148 148 0 0 1 118 105 Z" fill="#1d4ed8" fill-opacity="0.13" stroke="#1d4ed8" stroke-width="1"/>
+      <text x="78" y="190" text-anchor="middle" fill="#1d4ed8" font-size="11" font-weight="600">LEFT</text>
+      <text x="78" y="205" text-anchor="middle" fill="#1d4ed8" font-size="10">90–150°</text>
+
+      <!-- REAR zone (150-210°) -->
+      <path d="M250 220 L224 362 A148 148 0 0 1 102 242 Z" fill="#64748b" fill-opacity="0.13" stroke="#64748b" stroke-width="1"/>
+      <path d="M250 220 L276 362 A148 148 0 0 0 224 362 Z" fill="#64748b" fill-opacity="0.13" stroke="#64748b" stroke-width="1"/>
+      <text x="250" y="395" text-anchor="middle" fill="#64748b" font-size="11" font-weight="600">REAR</text>
+      <text x="250" y="410" text-anchor="middle" fill="#64748b" font-size="10">150–210°</text>
+
+      <!-- RIGHT zone (210-270°) -->
+      <path d="M250 220 L398 242 A148 148 0 0 1 276 362 Z" fill="#1d4ed8" fill-opacity="0.13" stroke="#1d4ed8" stroke-width="1"/>
+      <text x="416" y="305" text-anchor="middle" fill="#1d4ed8" font-size="11" font-weight="600">RIGHT</text>
+      <text x="416" y="320" text-anchor="middle" fill="#1d4ed8" font-size="10">210–270°</text>
+
+      <!-- FRONT RIGHT zone (270-330°) -->
+      <path d="M250 220 L382 105 A148 148 0 0 1 398 242 Z" fill="#ea580c" fill-opacity="0.13" stroke="#ea580c" stroke-width="1"/>
+      <text x="370" y="96" text-anchor="middle" fill="#ea580c" font-size="11" font-weight="600">FR</text>
+      <text x="370" y="110" text-anchor="middle" fill="#ea580c" font-size="10">270–330°</text>
+
+      <!-- Distance rings -->
+      <circle cx="250" cy="220" r="60" fill="none" stroke="#e2e8f0" stroke-width="0.5" stroke-dasharray="3 3"/>
+      <circle cx="250" cy="220" r="100" fill="none" stroke="#e2e8f0" stroke-width="0.5" stroke-dasharray="3 3"/>
+      <circle cx="250" cy="220" r="148" fill="none" stroke="#e2e8f0" stroke-width="0.5" stroke-dasharray="3 3"/>
+      <!-- Ring labels -->
+      <text x="315" y="218" fill="#94a3b8" font-size="9">0.25m</text>
+      <text x="355" y="218" fill="#94a3b8" font-size="9">0.45m</text>
+
+      <defs>
+        <marker id="arr2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+          <path d="M2 1L8 5L2 9" fill="none" stroke="#5eead4" stroke-width="1.5"/>
+        </marker>
+      </defs>
+    </svg>
+    <p class="diagram-caption">Fig. 2 — Découpage en 6 zones angulaires du Lidar 360°. Les anneaux indiquent les seuils DIST_AVOID (0.45m) et DIST_WARN (0.70m).</p>
+  </div>
+
+  <div class="zone-grid">
+    <div class="zone-card" style="background:#ccfbf1;"><div class="zone-name" style="color:#0d9488;">FRONT</div><div class="zone-angle" style="color:#0d9488;">±30° — Zone critique frontale</div></div>
+    <div class="zone-card" style="background:#ede9fe;"><div class="zone-name" style="color:#7c3aed;">FRONT_LEFT</div><div class="zone-angle" style="color:#7c3aed;">30°–90° — Avant gauche</div></div>
+    <div class="zone-card" style="background:#ffedd5;"><div class="zone-name" style="color:#ea580c;">FRONT_RIGHT</div><div class="zone-angle" style="color:#ea580c;">270°–330° — Avant droite</div></div>
+    <div class="zone-card" style="background:#dbeafe;"><div class="zone-name" style="color:#1d4ed8;">LEFT</div><div class="zone-angle" style="color:#1d4ed8;">90°–150° — Flanc gauche</div></div>
+    <div class="zone-card" style="background:#dbeafe;"><div class="zone-name" style="color:#1d4ed8;">RIGHT</div><div class="zone-angle" style="color:#1d4ed8;">210°–270° — Flanc droit</div></div>
+    <div class="zone-card" style="background:#f1f5f9;"><div class="zone-name" style="color:#64748b;">REAR</div><div class="zone-angle" style="color:#64748b;">150°–210° — Arrière</div></div>
+  </div>
+
+  <div class="highlight">
+    <div class="highlight-title">Évitement progressif — <code>speed_factor</code></div>
+    <div class="highlight-body">La distance frontale génère un facteur entre 0 et 1. Entre <code>DIST_AVOID</code> (0.45m) et <code>DIST_WARN</code> (0.70m), la vitesse diminue progressivement. En dessous de 0.45m, arrêt total. Au-delà de 0.70m, pleine vitesse. Cela évite les freinages brusques.</div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+  3. FSM
+═══════════════════════════════════════════════════ -->
+<section class="section" id="fsm">
+<div class="container">
+  <p class="section-eyebrow">03 — Version 1</p>
+  <h2 class="section-title">Machine à <em>États Finis</em><br>(FSM)</h2>
+  <p class="lead">La FSM modélise le comportement du robot comme un automate. À chaque instant, le robot est dans <strong>un seul état</strong>, et des conditions (basées sur les données Lidar) déclenchent les transitions.</p>
+
+  <!-- État chips -->
+  <div style="display:flex; flex-wrap:wrap; gap:10px; margin:1.5rem 0 2rem;">
+    <span class="state-chip" style="background:#ccfbf1; color:#0d9488;"><span class="state-dot" style="background:#0d9488;"></span>FORWARD</span>
+    <span class="state-chip" style="background:#ede9fe; color:#7c3aed;"><span class="state-dot" style="background:#7c3aed;"></span>TURN_LEFT</span>
+    <span class="state-chip" style="background:#ffedd5; color:#ea580c;"><span class="state-dot" style="background:#ea580c;"></span>TURN_RIGHT</span>
+    <span class="state-chip" style="background:#dbeafe; color:#1d4ed8;"><span class="state-dot" style="background:#1d4ed8;"></span>BACK_UP</span>
+    <span class="state-chip" style="background:#fee2e2; color:#dc2626;"><span class="state-dot" style="background:#dc2626;"></span>STUCK</span>
+  </div>
+
+  <!-- FSM DIAGRAM -->
+  <div class="diagram-box">
+    <svg width="100%" viewBox="0 0 760 520" role="img">
+      <title>Machine à états finis de navigation TurtleBot3</title>
+      <defs>
+        <marker id="fsm-arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round"/>
+        </marker>
+      </defs>
+
+      <!-- ── FORWARD (center) ── -->
+      <g>
+        <rect x="290" y="190" width="180" height="65" rx="12" fill="#ccfbf1" stroke="#0d9488" stroke-width="2"/>
+        <text x="380" y="218" text-anchor="middle" fill="#065f46" font-size="15" font-weight="700">FORWARD</text>
+        <text x="380" y="238" text-anchor="middle" fill="#0d9488" font-size="11">Avancer (speed_factor)</text>
+      </g>
+
+      <!-- ── TURN_LEFT (top-left) ── -->
+      <g>
+        <rect x="50" y="50" width="170" height="65" rx="12" fill="#ede9fe" stroke="#7c3aed" stroke-width="2"/>
+        <text x="135" y="78" text-anchor="middle" fill="#4c1d95" font-size="15" font-weight="700">TURN_LEFT</text>
+        <text x="135" y="97" text-anchor="middle" fill="#7c3aed" font-size="11">Rotation gauche</text>
+      </g>
+
+      <!-- ── TURN_RIGHT (top-right) ── -->
+      <g>
+        <rect x="540" y="50" width="170" height="65" rx="12" fill="#ffedd5" stroke="#ea580c" stroke-width="2"/>
+        <text x="625" y="78" text-anchor="middle" fill="#7c2d12" font-size="15" font-weight="700">TURN_RIGHT</text>
+        <text x="625" y="97" text-anchor="middle" fill="#ea580c" font-size="11">Rotation droite</text>
+      </g>
+
+      <!-- ── BACK_UP (bottom-left) ── -->
+      <g>
+        <rect x="50" y="380" width="170" height="65" rx="12" fill="#dbeafe" stroke="#1d4ed8" stroke-width="2"/>
+        <text x="135" y="408" text-anchor="middle" fill="#1e3a8a" font-size="15" font-weight="700">BACK_UP</text>
+        <text x="135" y="427" text-anchor="middle" fill="#1d4ed8" font-size="11">Reculer</text>
+      </g>
+
+      <!-- ── STUCK (bottom-right) ── -->
+      <g>
+        <rect x="540" y="380" width="170" height="65" rx="12" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
+        <text x="625" y="408" text-anchor="middle" fill="#7f1d1d" font-size="15" font-weight="700">STUCK</text>
+        <text x="625" y="427" text-anchor="middle" fill="#dc2626" font-size="11">Recul + rotation forcée</text>
+      </g>
+
+      <!-- ══ TRANSITIONS ══ -->
+
+      <!-- FORWARD → TURN_LEFT : obstacle front, espace gauche -->
+      <path d="M310 190 L210 115" fill="none" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#fsm-arr)"/>
+      <rect x="182" y="142" width="100" height="30" rx="5" fill="white" stroke="#e2e8f0" stroke-width="0.5"/>
+      <text x="232" y="159" text-anchor="middle" fill="#7c3aed" font-size="9.5">obstacle avant</text>
+      <text x="232" y="171" text-anchor="middle" fill="#7c3aed" font-size="9.5">→ espace gauche</text>
+
+      <!-- FORWARD → TURN_RIGHT : obstacle front, espace droite -->
+      <path d="M450 190 L550 115" fill="none" stroke="#ea580c" stroke-width="1.5" marker-end="url(#fsm-arr)"/>
+      <rect x="472" y="142" width="100" height="30" rx="5" fill="white" stroke="#e2e8f0" stroke-width="0.5"/>
+      <text x="522" y="159" text-anchor="middle" fill="#ea580c" font-size="9.5">obstacle avant</text>
+      <text x="522" y="171" text-anchor="middle" fill="#ea580c" font-size="9.5">→ espace droite</text>
+
+      <!-- FORWARD → BACK_UP : les deux côtés bouchés -->
+      <path d="M290 245 L220 380" fill="none" stroke="#1d4ed8" stroke-width="1.5" marker-end="url(#fsm-arr)"/>
+      <rect x="178" y="295" width="100" height="28" rx="5" fill="white" stroke="#e2e8f0" stroke-width="0.5"/>
+      <text x="228" y="309" text-anchor="middle" fill="#1d4ed8" font-size="9.5">deux côtés</text>
+      <text x="228" y="321" text-anchor="middle" fill="#1d4ed8" font-size="9.5">bouchés</text>
+
+      <!-- TURN_LEFT → FORWARD : voie libre -->
+      <path d="M220 82 Q260 140 290 205" fill="none" stroke="#0d9488" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#fsm-arr)"/>
+      <text x="228" y="155" fill="#0d9488" font-size="9.5">voie libre</text>
+
+      <!-- TURN_RIGHT → FORWARD : voie libre -->
+      <path d="M540 82 Q500 140 468 205" fill="none" stroke="#0d9488" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#fsm-arr)"/>
+      <text x="474" y="155" fill="#0d9488" font-size="9.5">voie libre</text>
+
+      <!-- BACK_UP → STUCK : bloqué depuis STUCK_TIME_S -->
+      <path d="M220 413 L538 413" fill="none" stroke="#dc2626" stroke-width="1.5" marker-end="url(#fsm-arr)"/>
+      <rect x="290" y="400" width="180" height="25" rx="5" fill="white" stroke="#e2e8f0" stroke-width="0.5"/>
+      <text x="380" y="416" text-anchor="middle" fill="#dc2626" font-size="9.5">bloqué &gt; STUCK_TIME_S secondes</text>
+
+      <!-- STUCK → FORWARD : manœuvre terminée -->
+      <path d="M625 380 Q625 310 500 260 Q470 248 470 255" fill="none" stroke="#0d9488" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#fsm-arr)"/>
+      <text x="600" y="318" fill="#0d9488" font-size="9.5">manœuvre</text>
+      <text x="600" y="330" fill="#0d9488" font-size="9.5">terminée</text>
+
+      <!-- TURN_LEFT → STUCK : oscillation détectée -->
+      <path d="M135 115 L135 380" fill="none" stroke="#dc2626" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#fsm-arr)"/>
+      <text x="55" y="250" fill="#dc2626" font-size="9.5">oscillation</text>
+      <text x="55" y="262" fill="#dc2626" font-size="9.5">détectée</text>
+
+      <!-- Legend -->
+      <rect x="250" y="470" width="12" height="3" rx="1" fill="#0d9488"/>
+      <text x="268" y="477" fill="#64748b" font-size="10">Transition normale</text>
+      <rect x="380" y="467" width="22" height="0" fill="none" stroke="#0d9488" stroke-width="1.5" stroke-dasharray="5 3"/>
+      <line x1="380" y1="470" x2="400" y2="470" stroke="#0d9488" stroke-width="1.5" stroke-dasharray="5 3"/>
+      <text x="408" y="474" fill="#64748b" font-size="10">Retour voie libre</text>
+      <line x1="520" y1="470" x2="540" y2="470" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="4 3"/>
+      <text x="548" y="474" fill="#64748b" font-size="10">Transition anti-blocage</text>
+    </svg>
+    <p class="diagram-caption">Fig. 3 — Diagramme d'états de la FSM. Les transitions en pointillés indiquent un retour vers l'état FORWARD (voie libre). Les transitions en rouge signalent des mécanismes anti-blocage.</p>
+  </div>
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin:2rem 0;">
+    <div>
+      <h3 style="font-size:1.05rem; font-weight:600; margin-bottom:1rem; color:var(--ink2);">Description des états</h3>
+      <table class="param-table">
+        <thead><tr><th>État</th><th>Comportement</th></tr></thead>
+        <tbody>
+          <tr><td><code style="color:#0d9488;">FORWARD</code></td><td>Avance à vitesse proportionnelle au <code>speed_factor</code></td></tr>
+          <tr><td><code style="color:#7c3aed;">TURN_LEFT</code></td><td>Rotation pure gauche. Rapide si obstacle dur, lente si avertissement</td></tr>
+          <tr><td><code style="color:#ea580c;">TURN_RIGHT</code></td><td>Rotation pure droite. Même logique que TURN_LEFT</td></tr>
+          <tr><td><code style="color:#1d4ed8;">BACK_UP</code></td><td>Recule à basse vitesse quand les deux côtés sont bouchés</td></tr>
+          <tr><td><code style="color:#dc2626;">STUCK</code></td><td>Recul + rotation forcée pendant STUCK_DURATION secondes</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <h3 style="font-size:1.05rem; font-weight:600; margin-bottom:1rem; color:var(--ink2);">Améliorations FSM</h3>
+      <div class="highlight" style="margin-top:0;">
+        <div class="highlight-title">Anti-oscillation</div>
+        <div class="highlight-body">Un historique des <code>OSC_WINDOW</code> derniers états est maintenu. Si plus de <code>OSC_THRESHOLD</code> alternances TURN_LEFT↔TURN_RIGHT sont détectées, la gauche est forcée pour casser la boucle.</div>
+      </div>
+      <div class="highlight orange" style="margin-top:1rem;">
+        <div class="highlight-title">Anti-blocage (STUCK)</div>
+        <div class="highlight-body">Si le robot n'avance pas depuis plus de <code>STUCK_TIME_S</code> secondes, il entre en état STUCK : recul + rotation à <code>ANGULAR_STUCK</code> pendant <code>STUCK_DURATION</code> secondes.</div>
+      </div>
+    </div>
+  </div>
+
+  <h3 style="font-size:1.1rem; font-weight:600; margin-bottom:1rem; color:var(--ink2);">Extrait de code — transition FSM</h3>
+  <pre><span class="cm"># Calcul du prochain état selon l'analyse Lidar</span>
+<span class="kw">def</span> _compute_next_state(<span class="st">self</span>, a: dict) -> str:
+    <span class="kw">if</span> a["avoid_direction"] == <span class="st">"back"</span>:
+        <span class="kw">return</span> STATE_BACK_UP
+    <span class="kw">if</span> a["obstacle_front"]:
+        <span class="kw">if</span> a["avoid_direction"] == <span class="st">"left"</span>:
+            <span class="kw">return</span> STATE_TURN_LEFT
+        <span class="kw">return</span> STATE_TURN_RIGHT
+    <span class="cm"># Avertissement précoce → correction douce</span>
+    <span class="kw">if</span> a["warn_front"] <span class="kw">and not</span> a["warn_front_left"] <span class="kw">and</span> a["warn_front_right"]:
+        <span class="kw">return</span> STATE_TURN_LEFT
+    <span class="kw">return</span> STATE_FORWARD</pre>
+</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+  4. BEHAVIOR TREE
+═══════════════════════════════════════════════════ -->
+<section class="section" id="bt">
+<div class="container">
+  <p class="section-eyebrow">04 — Version 2</p>
+  <h2 class="section-title">Behavior <em>Tree</em><br>(BT)</h2>
+  <p class="lead">Le Behavior Tree organise les décisions en un arbre de nœuds évalués à 10 Hz. Chaque nœud retourne <strong>SUCCESS</strong>, <strong>FAILURE</strong> ou <strong>RUNNING</strong>. L'arbre est traversé de haut en bas, du premier enfant vers le dernier.</p>
+
+  <!-- BT concepts -->
+  <div class="card-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom:2rem;">
+    <div class="card" style="border-left: 3px solid #1d4ed8;">
+      <div class="card-title" style="color:#1d4ed8;">Séquence →</div>
+      <div class="card-body">Exécute ses enfants dans l'ordre. S'arrête dès qu'un enfant retourne FAILURE. Succède si tous réussissent.</div>
+    </div>
+    <div class="card" style="border-left: 3px solid #0d9488;">
+      <div class="card-title" style="color:#0d9488;">Sélecteur ?</div>
+      <div class="card-body">Essaie ses enfants dans l'ordre. S'arrête dès qu'un enfant retourne SUCCESS. Échoue si tous échouent.</div>
+    </div>
+    <div class="card" style="border-left: 3px solid #ea580c;">
+      <div class="card-title" style="color:#ea580c;">Feuilles</div>
+      <div class="card-body">Conditions (vérifient l'état du monde) et Actions (interagissent avec le robot). Retournent SUCCESS, FAILURE ou RUNNING.</div>
+    </div>
+  </div>
+
+  <!-- BT DIAGRAM -->
+  <div class="diagram-box">
+    <svg width="100%" viewBox="0 0 760 460" role="img">
+      <title>Behavior Tree de navigation</title>
+      <defs>
+        <marker id="bt-arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+          <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round"/>
+        </marker>
+      </defs>
+
+      <!-- ROOT Selector -->
+      <rect x="280" y="20" width="200" height="55" rx="12" fill="#1a1a2e" stroke="#334155" stroke-width="2"/>
+      <text x="380" y="44" text-anchor="middle" fill="white" font-size="14" font-weight="700">Sélecteur ROOT</text>
+      <text x="380" y="62" text-anchor="middle" fill="#94a3b8" font-size="11">Priorité décroissante</text>
+
+      <!-- Line from root -->
+      <line x1="380" y1="75" x2="380" y2="95" stroke="#475569" stroke-width="1.5"/>
+
+      <!-- Horizontal bar -->
+      <line x1="80" y1="95" x2="680" y2="95" stroke="#475569" stroke-width="1.5"/>
+
+      <!-- Branch 1: STUCK RECOVERY -->
+      <line x1="80" y1="95" x2="80" y2="120" stroke="#dc2626" stroke-width="1.5"/>
+      <rect x="20" y="120" width="120" height="45" rx="10" fill="#fee2e2" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="80" y="140" text-anchor="middle" fill="#7f1d1d" font-size="11" font-weight="700">Séquence</text>
+      <text x="80" y="155" text-anchor="middle" fill="#dc2626" font-size="10">STUCK RECOVERY</text>
+      <!-- Children -->
+      <line x1="55" y1="165" x2="55" y2="195" stroke="#dc2626" stroke-width="1"/>
+      <line x1="105" y1="165" x2="105" y2="195" stroke="#dc2626" stroke-width="1"/>
+      <line x1="55" y1="165" x2="105" y2="165" stroke="#dc2626" stroke-width="1"/>
+      <rect x="15" y="195" width="80" height="40" rx="8" fill="#fca5a5" stroke="#dc2626" stroke-width="1"/>
+      <text x="55" y="211" text-anchor="middle" fill="#7f1d1d" font-size="10" font-weight="600">IsStuck?</text>
+      <text x="55" y="226" text-anchor="middle" fill="#dc2626" font-size="9">Condition</text>
+      <rect x="65" y="195" width="80" height="40" rx="8" fill="#fca5a5" stroke="#dc2626" stroke-width="1"/>
+      <text x="105" y="211" text-anchor="middle" fill="#7f1d1d" font-size="10" font-weight="600">BackupSpin</text>
+      <text x="105" y="226" text-anchor="middle" fill="#dc2626" font-size="9">Action</text>
+
+      <!-- Branch 2: OBSTACLE AVOIDANCE -->
+      <line x1="240" y1="95" x2="240" y2="120" stroke="#7c3aed" stroke-width="1.5"/>
+      <rect x="170" y="120" width="140" height="45" rx="10" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.5"/>
+      <text x="240" y="140" text-anchor="middle" fill="#4c1d95" font-size="11" font-weight="700">Séquence</text>
+      <text x="240" y="155" text-anchor="middle" fill="#7c3aed" font-size="10">OBSTACLE AVOID</text>
+      <!-- Children -->
+      <line x1="215" y1="165" x2="215" y2="195" stroke="#7c3aed" stroke-width="1"/>
+      <line x1="265" y1="165" x2="265" y2="195" stroke="#7c3aed" stroke-width="1"/>
+      <line x1="215" y1="165" x2="265" y2="165" stroke="#7c3aed" stroke-width="1"/>
+      <rect x="168" y="195" width="94" height="40" rx="8" fill="#c4b5fd" stroke="#7c3aed" stroke-width="1"/>
+      <text x="215" y="211" text-anchor="middle" fill="#4c1d95" font-size="10" font-weight="600">IsObstacle?</text>
+      <text x="215" y="226" text-anchor="middle" fill="#7c3aed" font-size="9">Condition</text>
+      <rect x="220" y="195" width="90" height="40" rx="8" fill="#c4b5fd" stroke="#7c3aed" stroke-width="1"/>
+      <text x="265" y="211" text-anchor="middle" fill="#4c1d95" font-size="10" font-weight="600">TurnAway</text>
+      <text x="265" y="226" text-anchor="middle" fill="#7c3aed" font-size="9">Action</text>
+
+      <!-- Branch 3: WARN SLOW -->
+      <line x1="430" y1="95" x2="430" y2="120" stroke="#ea580c" stroke-width="1.5"/>
+      <rect x="360" y="120" width="140" height="45" rx="10" fill="#ffedd5" stroke="#ea580c" stroke-width="1.5"/>
+      <text x="430" y="140" text-anchor="middle" fill="#7c2d12" font-size="11" font-weight="700">Séquence</text>
+      <text x="430" y="155" text-anchor="middle" fill="#ea580c" font-size="10">WARN SLOW</text>
+      <!-- Children -->
+      <line x1="405" y1="165" x2="405" y2="195" stroke="#ea580c" stroke-width="1"/>
+      <line x1="455" y1="165" x2="455" y2="195" stroke="#ea580c" stroke-width="1"/>
+      <line x1="405" y1="165" x2="455" y2="165" stroke="#ea580c" stroke-width="1"/>
+      <rect x="355" y="195" width="100" height="40" rx="8" fill="#fdba74" stroke="#ea580c" stroke-width="1"/>
+      <text x="405" y="211" text-anchor="middle" fill="#7c2d12" font-size="10" font-weight="600">IsWarning?</text>
+      <text x="405" y="226" text-anchor="middle" fill="#ea580c" font-size="9">Condition</text>
+      <rect x="408" y="195" width="95" height="40" rx="8" fill="#fdba74" stroke="#ea580c" stroke-width="1"/>
+      <text x="455" y="211" text-anchor="middle" fill="#7c2d12" font-size="10" font-weight="600">SlowDown</text>
+      <text x="455" y="226" text-anchor="middle" fill="#ea580c" font-size="9">Action</text>
+
+      <!-- Branch 4: DRIVE FORWARD -->
+      <line x1="630" y1="95" x2="630" y2="120" stroke="#0d9488" stroke-width="1.5"/>
+      <rect x="565" y="120" width="130" height="45" rx="10" fill="#ccfbf1" stroke="#0d9488" stroke-width="2"/>
+      <text x="630" y="144" text-anchor="middle" fill="#065f46" font-size="13" font-weight="700">DriveForward</text>
+      <text x="630" y="160" text-anchor="middle" fill="#0d9488" font-size="10">Action (feuille)</text>
+
+      <!-- Priority labels -->
+      <text x="80" y="288" text-anchor="middle" fill="#dc2626" font-size="9" font-weight="600">① PRIORITÉ MAX</text>
+      <text x="240" y="288" text-anchor="middle" fill="#7c3aed" font-size="9" font-weight="600">② PRIORITÉ HAUTE</text>
+      <text x="430" y="288" text-anchor="middle" fill="#ea580c" font-size="9" font-weight="600">③ PRIORITÉ MOYENNE</text>
+      <text x="630" y="175" text-anchor="middle" fill="#0d9488" font-size="9" font-weight="600">④ DÉFAUT</text>
+
+      <!-- Tick explanation -->
+      <rect x="190" y="340" width="380" height="90" rx="12" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
+      <text x="380" y="365" text-anchor="middle" fill="#1a1a2e" font-size="12" font-weight="600">Évaluation à chaque tick (10 Hz)</text>
+      <text x="380" y="385" text-anchor="middle" fill="#64748b" font-size="11">Le sélecteur essaie ① → ② → ③ → ④</text>
+      <text x="380" y="403" text-anchor="middle" fill="#64748b" font-size="11">Dès qu'une séquence retourne SUCCESS, les suivantes sont ignorées</text>
+      <text x="380" y="421" text-anchor="middle" fill="#0d9488" font-size="11">④ DriveForward est le comportement par défaut si aucun obstacle</text>
+    </svg>
+    <p class="diagram-caption">Fig. 4 — Structure du Behavior Tree. Le sélecteur racine évalue les branches par ordre de priorité. Chaque séquence exige que TOUTES ses conditions soient vraies avant d'exécuter son action.</p>
+  </div>
+
+  <h3 style="font-size:1.1rem; font-weight:600; margin:2rem 0 1rem; color:var(--ink2);">Nœuds implémentés</h3>
+  <table class="param-table">
+    <thead><tr><th>Nœud</th><th>Type</th><th>Rôle</th></tr></thead>
+    <tbody>
+      <tr><td><code>IsStuck</code></td><td>Condition</td><td>Vérifie si le robot est bloqué depuis plus de <code>STUCK_TIME_S</code> secondes</td></tr>
+      <tr><td><code>BackupAndSpin</code></td><td>Action</td><td>Recule + tourne en <code>RUNNING</code> pendant <code>STUCK_DURATION</code>s, puis retourne SUCCESS</td></tr>
+      <tr><td><code>IsObstacleAhead</code></td><td>Condition</td><td>Retourne SUCCESS si <code>obstacle_front == True</code> (seuil dur)</td></tr>
+      <tr><td><code>TurnAway</code></td><td>Action</td><td>Calcule la direction (gauche/droite/reculer) selon <code>avoid_direction</code></td></tr>
+      <tr><td><code>IsWarning</code></td><td>Condition</td><td>Retourne SUCCESS si <code>warn_front == True</code> ET <code>obstacle_front == False</code></td></tr>
+      <tr><td><code>SlowDown</code></td><td>Action</td><td>Avance avec <code>speed_factor</code> et correction angulaire douce</td></tr>
+      <tr><td><code>DriveForward</code></td><td>Action</td><td>Avance à pleine vitesse, toujours SUCCESS</td></tr>
+    </tbody>
+  </table>
+
+  <div class="highlight purple">
+    <div class="highlight-title">Blackboard py_trees 2.x</div>
+    <div class="highlight-body">Sous ROS2 Humble, l'API Blackboard a changé. Il faut impérativement utiliser <code>py_trees.blackboard.Client</code> avec <code>register_key()</code>. Les données Lidar analysées (<code>lidar_analysis</code>) et le chrono anti-blocage (<code>stuck_since</code>) sont partagés entre tous les nœuds de l'arbre.</div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+  5. COMPARAISON FSM vs BT
+═══════════════════════════════════════════════════ -->
+<section class="section" id="comparaison">
+<div class="container">
+  <p class="section-eyebrow">05 — Analyse comparative</p>
+  <h2 class="section-title">FSM <em>vs</em> Behavior Tree</h2>
+  <p class="lead">Les deux approches produisent un comportement équivalent mais différent dans leur architecture, leur maintenabilité et leur extensibilité.</p>
+
+  <table class="diff-table">
+    <thead>
+      <tr>
+        <th style="width:22%;">Critère</th>
+        <th style="width:39%;"><span class="tag-fsm">FSM</span></th>
+        <th style="width:39%;"><span class="tag-bt">BT</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="attr">Structure</td>
+        <td class="val">Automate fini : états + transitions explicites. Tout le logique dans <code>_compute_next_state()</code>.</td>
+        <td class="val">Arbre de nœuds hiérarchiques. Chaque nœud est une classe Python indépendante.</td>
+      </tr>
+      <tr>
+        <td class="attr">Lisibilité</td>
+        <td class="val">Facile à tracer à la main. Diagramme d'états naturel. Peut devenir complexe avec de nombreuses transitions.</td>
+        <td class="val">Structure visuelle claire grâce à l'arbre. Chaque comportement est isolé et nommé.</td>
+      </tr>
+      <tr>
+        <td class="attr">Extensibilité</td>
+        <td class="val">Ajouter un état = modifier <code>_compute_next_state()</code> et <code>_execute_state()</code>. Risque de régression.</td>
+        <td class="val">Ajouter un comportement = créer une nouvelle classe + l'insérer dans l'arbre. Pas de modification de l'existant.</td>
+      </tr>
+      <tr>
+        <td class="attr">Priorités</td>
+        <td class="val">Implicites dans les <code>if/elif</code> de la fonction de transition.</td>
+        <td class="val">Explicites : l'ordre des enfants du sélecteur = la priorité. Visible directement dans la structure.</td>
+      </tr>
+      <tr>
+        <td class="attr">Réutilisabilité</td>
+        <td class="val">Les comportements sont couplés à la classe principale.</td>
+        <td class="val">Chaque nœud feuille est réutilisable dans d'autres arbres ou projets.</td>
+      </tr>
+      <tr>
+        <td class="attr">Débogage</td>
+        <td class="val">Logger l'état courant suffit. Simple.</td>
+        <td class="val">py_trees fournit des outils de visualisation de l'arbre en temps réel.</td>
+      </tr>
+      <tr>
+        <td class="attr">Performance</td>
+        <td class="val">Légèrement plus rapide : pas de traversée d'arbre.</td>
+        <td class="val">Overhead minimal (traversée en mémoire). Négligeable à 10 Hz.</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+  6. PARAMÈTRES
+═══════════════════════════════════════════════════ -->
+<section class="section" id="parametres">
+<div class="container">
+  <p class="section-eyebrow">06 — Configuration</p>
+  <h2 class="section-title">Paramètres <em>ajustables</em></h2>
+  <p class="lead">Tous les paramètres sont définis en tête de chaque fichier Python et peuvent être modifiés sans recompilation.</p>
+
+  <table class="param-table">
+    <thead><tr><th>Paramètre</th><th>Fichier</th><th>Valeur par défaut</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><code>DIST_AVOID</code></td><td>lidar_zones.py</td><td>0.45 m</td><td>Seuil dur d'évitement. En dessous → arrêt et rotation.</td></tr>
+      <tr><td><code>DIST_WARN</code></td><td>lidar_zones.py</td><td>0.70 m</td><td>Seuil doux d'avertissement. Entre WARN et AVOID → vitesse réduite.</td></tr>
+      <tr><td><code>DIST_CLEAR</code></td><td>lidar_zones.py</td><td>0.90 m</td><td>Distance à partir de laquelle la zone est considérée libre.</td></tr>
+      <tr><td><code>DIST_SIDE</code></td><td>lidar_zones.py</td><td>0.30 m</td><td>Seuil latéral pour la détection de mur serré.</td></tr>
+      <tr><td><code>LINEAR_MAX</code></td><td>fsm/bt_navigation.py</td><td>0.22 m/s</td><td>Vitesse max en ligne droite (limite physique du Waffle).</td></tr>
+      <tr><td><code>ANGULAR_FAST</code></td><td>fsm/bt_navigation.py</td><td>1.5 rad/s</td><td>Vitesse de rotation lors d'un évitement urgent.</td></tr>
+      <tr><td><code>ANGULAR_SLOW</code></td><td>fsm/bt_navigation.py</td><td>0.5 rad/s</td><td>Rotation douce pour les avertissements précoces.</td></tr>
+      <tr><td><code>OSC_THRESHOLD</code></td><td>fsm_navigation.py</td><td>6</td><td>Nb d'alternances dans la fenêtre avant détection d'oscillation.</td></tr>
+      <tr><td><code>OSC_WINDOW</code></td><td>fsm_navigation.py</td><td>10</td><td>Taille de la fenêtre glissante d'anti-oscillation.</td></tr>
+      <tr><td><code>STUCK_TIME_S</code></td><td>fsm/bt_navigation.py</td><td>3.0 s</td><td>Durée sans avancer avant déclenchement de la manœuvre STUCK.</td></tr>
+      <tr><td><code>STUCK_DURATION</code></td><td>fsm/bt_navigation.py</td><td>2.0 s</td><td>Durée de la manœuvre anti-blocage.</td></tr>
+    </tbody>
+  </table>
+</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+  7. INSTRUCTIONS
+═══════════════════════════════════════════════════ -->
+<section class="section" id="instructions">
+<div class="container">
+  <p class="section-eyebrow">07 — Mise en œuvre</p>
+  <h2 class="section-title">Instructions de<br><em>compilation et d'exécution</em></h2>
+
+  <div class="highlight orange">
+    <div class="highlight-title">⚠ Erreur fréquente — Service /spawn_entity unavailable</div>
+    <div class="highlight-body">Cette erreur survient si Gazebo n'a pas eu le temps de charger complètement avant que le script de spawn ne soit appelé. Solution : attendre que le robot soit <strong>visible dans la fenêtre Gazebo</strong> avant de lancer le nœud de navigation. Sur les machines lentes, ce délai peut aller jusqu'à 60 secondes.</div>
+  </div>
+
+  <h3 style="font-size:1.05rem; font-weight:600; margin:2rem 0 1rem; color:var(--ink2);">1. Installation des dépendances</h3>
+  <pre><span class="cm"># Package TurtleBot3 pour Gazebo (ROS2 Humble)</span>
+sudo apt install -y ros-humble-turtlebot3-gazebo
+
+<span class="cm"># py_trees (obligatoire pour le BT)</span>
+sudo apt install -y ros-humble-py-trees ros-humble-py-trees-ros \
+                   ros-humble-py-trees-ros-interfaces
+
+<span class="cm"># Variable d'environnement — à ajouter dans ~/.bashrc</span>
+<span class="kw">export</span> TURTLEBOT3_MODEL=waffle</pre>
+
+  <h3 style="font-size:1.05rem; font-weight:600; margin:2rem 0 1rem; color:var(--ink2);">2. Compilation</h3>
+  <pre>cd ~/ros2_ws/src
+cp -r /chemin/vers/turtlebot3_nav .
+
+cd ~/ros2_ws
+colcon build --packages-select turtlebot3_nav
+source install/setup.bash</pre>
+
+  <h3 style="font-size:1.05rem; font-weight:600; margin:2rem 0 1rem; color:var(--ink2);">3. Lancement (méthode recommandée)</h3>
+  <pre><span class="cm"># Terminal 1 — Gazebo (attendre que le robot soit visible)</span>
+<span class="kw">export</span> TURTLEBOT3_MODEL=waffle
+ros2 launch turtlebot3_gazebo turtlebot3_world.launch.py
+
+<span class="cm"># Terminal 2 — FSM OU BT (après apparition du robot)</span>
+source ~/ros2_ws/install/setup.bash
+ros2 run turtlebot3_nav fsm_navigation   <span class="cm"># Version FSM</span>
+<span class="cm"># OU</span>
+ros2 run turtlebot3_nav bt_navigation    <span class="cm"># Version BT</span></pre>
+
+  <h3 style="font-size:1.05rem; font-weight:600; margin:2rem 0 1rem; color:var(--ink2);">4. Vérification</h3>
+  <pre><span class="cm"># Vérifier que le Lidar publie (doit afficher "average rate: 5.0")</span>
+ros2 topic hz /scan
+
+<span class="cm"># Voir les commandes envoyées au robot (doit afficher des nombres)</span>
+ros2 topic echo /cmd_vel
+
+<span class="cm"># Lister les nœuds actifs</span>
+ros2 node list   <span class="cm"># → /fsm_navigation ou /bt_navigation</span></pre>
+</div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+  8. DIFFICULTÉS
+═══════════════════════════════════════════════════ -->
+<section class="section" id="difficultes">
+<div class="container">
+  <p class="section-eyebrow">08 — Bilan</p>
+  <h2 class="section-title">Difficultés<br><em>rencontrées</em></h2>
+
+  <div class="card-grid" style="grid-template-columns: 1fr 1fr;">
+    <div class="card" style="border-top: 3px solid #dc2626;">
+      <div class="card-title" style="color:#dc2626;">Délai de démarrage Gazebo</div>
+      <div class="card-body">Le plugin <code>GazeboRosFactory</code> met du temps à s'initialiser. Le spawn du robot échoue si lancé trop tôt. Solution : attendre l'apparition visuelle du robot avant toute commande.</div>
+    </div>
+    <div class="card" style="border-top: 3px solid #ea580c;">
+      <div class="card-title" style="color:#ea580c;">Oscillations FSM</div>
+      <div class="card-body">Dans les couloirs étroits, le robot pouvait alterner indéfiniment entre TURN_LEFT et TURN_RIGHT. Résolu par une fenêtre glissante de détection d'oscillation et un forçage de direction.</div>
+    </div>
+    <div class="card" style="border-top: 3px solid #7c3aed;">
+      <div class="card-title" style="color:#7c3aed;">API Blackboard py_trees 2.x</div>
+      <div class="card-body">La migration de py_trees 0.x vers 2.x (Humble) a introduit un nouveau système de Blackboard avec <code>Client</code> et <code>register_key()</code>. L'ancienne API <code>set/get</code> directe ne fonctionne plus.</div>
+    </div>
+    <div class="card" style="border-top: 3px solid #1d4ed8;">
+      <div class="card-title" style="color:#1d4ed8;">Angles morts du Lidar</div>
+      <div class="card-body">En ne lisant que la zone frontale, le robot pouvait rater des obstacles sur les côtés lors des rotations. Le découpage en 6 zones avec seuils latéraux (<code>DIST_SIDE</code>) a corrigé ce problème.</div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- FOOTER -->
+<footer class="footer">
+  <p>TP5 — Navigation Autonome TurtleBot3 &nbsp;·&nbsp; <strong>ROS2 Humble</strong> &nbsp;·&nbsp; Ubuntu 22.04 LTS</p>
+  <p style="margin-top:8px; font-size:12px;">FSM + Behavior Tree · lidar_zones.py · py_trees 2.x · Gazebo Classic</p>
+</footer>
+
+</body>
+</html>
