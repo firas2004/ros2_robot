@@ -13,7 +13,7 @@ Both approaches share a common LiDAR analysis module (`lidar_zones.py`) that div
 
 ---
 
-# TP5 — Navigation autonome TurtleBot3
+#  — Navigation autonome TurtleBot3
 ## FSM + Behavior Tree | ROS2 Humble | Ubuntu 22.04
 
 ---
