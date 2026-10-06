@@ -1,3 +1,18 @@
+# ROS2 Robot — Autonomous Navigation with TurtleBot3
+
+## 📋 Summary
+
+This project implements **autonomous obstacle-avoidance navigation** for a TurtleBot3 robot using **ROS2 Humble** and **Gazebo** simulation. Two navigation strategies are provided and compared:
+
+- **FSM (Finite State Machine)** — a reactive state-based controller that switches between *Forward*, *Avoid*, *Rotate*, and *Stuck Recovery* states based on real-time LiDAR data.
+- **Behavior Tree (BT)** — a modular, hierarchical controller built with `py_trees` that handles the same scenarios in a more scalable and readable architecture.
+
+Both approaches share a common LiDAR analysis module (`lidar_zones.py`) that divides the sensor field into zones (front, left, right) and classifies obstacles into danger/avoid/caution levels.
+
+> **Stack:** ROS2 Humble · Python 3.10 · Gazebo 11 · py_trees · Ubuntu 22.04
+
+---
+
 # TP5 — Navigation autonome TurtleBot3
 ## FSM + Behavior Tree | ROS2 Humble | Ubuntu 22.04
 
